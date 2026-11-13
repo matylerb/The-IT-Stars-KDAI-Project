@@ -7,7 +7,7 @@
 | Name | Student number | GitHub username |
 | --- | --- | --- |
 | Cillian Chatham | C24368226 | [Chats30](https://github.com/Chats30) |
-| Tyler Brady | C24394486 | [matylerb](https://github.com/matylerb) |
+| Tyler Brady | C24394486 | [matylerb](https://github.com/matylerb) [Tyler-SAP](https://github.com/Tyler-SAP) (Tyler's Work Machine) |
 | Illya Mikava | C24357241 | [IllyaMikava](https://github.com/IllyaMikava) |
 | Ivan Kubsky | C24763491 | [1ovann](https://github.com/1ovann) |
 
