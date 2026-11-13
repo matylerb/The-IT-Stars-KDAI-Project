@@ -11,7 +11,7 @@ We propose a knowledge driven AI agent that detects attacks on a web application
 | Cillian Chatham | C24368226 | [Chats30](https://github.com/Chats30) | Detection Engineer |
 | Tyler Brady | C24394486 | [matylerb](https://github.com/matylerb) | AI Integration Engineer |
 | Illya Mikava | C24357241 | [IllyaMikava](https://github.com/IllyaMikava) | Data and Environment Engineer |
-| Ivan Kubsky | C24763491 | TBC | Knowledge Engineer |
+| Ivan Kubsky | C24763491 | 1ovann | Knowledge Engineer |
 
 ## 2. Problem description
 
