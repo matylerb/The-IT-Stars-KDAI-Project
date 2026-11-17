@@ -1,0 +1,38 @@
+services:
+
+  juiceshop:
+    image: bkimminich/juice-shop
+    # Use linux/amd64 because the official image has no arm64 build;
+    # Docker Desktop on Apple Silicon emulates it transparently.
+    platform: linux/amd64
+    restart: unless-stopped
+    expose:
+      - "3000"            # only reachable inside the Docker network
+
+  nginx:
+    image: nginx:1.27-alpine
+    platform: linux/amd64
+    restart: unless-stopped
+    command: /bin/sh -c "rm -f /var/log/nginx/access.log /var/log/nginx/error.log && nginx -g 'daemon off;'"
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - juiceshop
+
+  agent:
+    build:
+      context: ./src/agent
+    platform: linux/amd64
+    restart: unless-stopped
+    volumes:
+      - nginx_logs:/var/log/nginx:ro   # read-only view of the same log dir
+    environment:
+      - LOG_PATH=/var/log/nginx/access.log
+    depends_on:
+      - nginx
+
+volumes:
+  nginx_logs:    # shared named volume — nginx writes, agent reads
