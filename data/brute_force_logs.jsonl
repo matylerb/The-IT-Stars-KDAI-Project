@@ -1,0 +1,19 @@
+{"ts":"2026-11-18T00:51:28+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.106,"body":""}
+{"ts":"2026-11-18T00:51:28+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.021,"body":""}
+{"ts":"2026-11-18T00:51:29+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.020,"body":""}
+{"ts":"2026-11-18T00:51:29+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.021,"body":""}
+{"ts":"2026-11-18T00:51:29+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.019,"body":""}
+{"ts":"2026-11-18T00:51:30+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.022,"body":""}
+{"ts":"2026-11-18T00:51:30+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.022,"body":""}
+{"ts":"2026-11-18T00:51:30+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.023,"body":""}
+{"ts":"2026-11-18T00:51:31+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.021,"body":""}
+{"ts":"2026-11-18T00:51:31+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.019,"body":""}
+{"ts":"2026-11-18T00:51:31+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.020,"body":""}
+{"ts":"2026-11-18T00:51:32+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.017,"body":""}
+{"ts":"2026-11-18T00:51:32+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.019,"body":""}
+{"ts":"2026-11-18T00:51:32+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.016,"body":""}
+{"ts":"2026-11-18T00:51:33+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.019,"body":""}
+{"ts":"2026-11-18T00:51:33+00:00","ip":"192.168.65.1","method":"GET","path":"/socket.io/","query":"EIO=4&transport=polling&t=enzl34q4&sid=wh0jsyS6QHbpjdKKAAAA","status":200,"user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:160.0) Gecko/20100101 Firefox/160.0","request_time":25.008,"body":""}
+{"ts":"2026-11-18T00:51:33+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":401,"user_agent":"python-requests/2.34.2","request_time":0.031,"body":""}
+{"ts":"2026-11-18T00:51:33+00:00","ip":"192.168.65.1","method":"POST","path":"/socket.io/","query":"EIO=4&transport=polling&t=eoivyg7q&sid=wh0jsyS6QHbpjdKKAAAA","status":200,"user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:160.0) Gecko/20100101 Firefox/160.0","request_time":0.031,"body":""}
+{"ts":"2026-11-18T00:51:33+00:00","ip":"10.0.0.60","method":"POST","path":"/rest/user/login","query":"","status":200,"user_agent":"python-requests/2.34.2","request_time":0.033,"body":""}
