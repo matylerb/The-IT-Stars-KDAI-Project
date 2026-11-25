@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 .env
 .DS_Store
+scratch/
 
 # runtime output from the threshold tuner (generated per run, not source)
 data/threshold_overrides.json
