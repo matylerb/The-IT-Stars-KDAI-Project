@@ -1,0 +1,63 @@
+subject,predicate,object
+# =====================================================================
+# Ontology for the security knowledge graph (Lecture 8)
+# Classes are the kinds of things, properties are the allowed links.
+# domain = what the SUBJECT of a link must be
+# range  = what the OBJECT of a link must be ("Literal" = plain text)
+# If a property has several domains, the subject may be any one of them.
+# =====================================================================
+
+# ---------- classes ----------
+AttackPattern,type,Class
+Technique,type,Class
+WeaknessCategory,type,Class
+Mitigation,type,Class
+ResponseAction,type,Class
+ResponseSlot,type,Class
+Attacker,type,Class
+
+# ---------- links between things ----------
+# attack -> MITRE ATT&CK technique
+mapsTo,type,Property
+mapsTo,domain,AttackPattern
+mapsTo,range,Technique
+
+# attack -> OWASP Top 10 category
+classifiedAs,type,Property
+classifiedAs,domain,AttackPattern
+classifiedAs,range,WeaknessCategory
+
+# sub-technique -> parent technique (e.g. T1110.001 -> T1110)
+subTechniqueOf,type,Property
+subTechniqueOf,domain,Technique
+subTechniqueOf,range,Technique
+
+# something dangerous -> what reduces the risk
+mitigatedBy,type,Property
+mitigatedBy,domain,AttackPattern
+mitigatedBy,domain,Technique
+mitigatedBy,domain,WeaknessCategory
+mitigatedBy,range,Mitigation
+
+# long-term mitigation -> one-tap action the bot can offer now
+implementedBy,type,Property
+implementedBy,domain,Mitigation
+implementedBy,range,ResponseAction
+
+# action -> which CSP slot it fills (network / account / application)
+actsOn,type,Property
+actsOn,domain,ResponseAction
+actsOn,range,ResponseSlot
+
+# learned from the feedback store: a human confirmed this IP really attacked
+confirmedAttackerOf,type,Property
+confirmedAttackerOf,domain,Attacker
+confirmedAttackerOf,range,AttackPattern
+
+# ---------- text attached to anything ----------
+label,type,Property
+label,range,Literal
+description,type,Property
+description,range,Literal
+source,type,Property
+source,range,Literal
