@@ -1,0 +1,184 @@
+subject,predicate,object
+# =====================================================================
+# Security knowledge graph: the facts (individuals and their links).
+# Edit knowledge here, not in code. Checked against ontology.csv by tests.
+# IDs of attacks match the detector's attack_type values.
+# =====================================================================
+
+# ---------- attack patterns (what the detector reports) ----------
+sqli,type,AttackPattern
+sqli,label,SQL injection
+sqli,description,"SQL code was put into a request so the database might run it, for example to read data or skip a login check."
+sqli,mapsTo,T1190
+sqli,classifiedAs,A03:2021
+sqli,mitigatedBy,parameterised_queries
+
+xss,type,AttackPattern
+xss,label,Cross-site scripting (XSS)
+xss,description,"JavaScript was put into a request so it might run in other users' browsers, for example to steal their session."
+xss,mapsTo,T1189
+xss,classifiedAs,A03:2021
+xss,mitigatedBy,output_encoding
+xss,mitigatedBy,content_security_policy
+
+brute_force,type,AttackPattern
+brute_force,label,Brute-force login
+brute_force,description,Many passwords were tried against the login page to guess one that works.
+brute_force,mapsTo,T1110.001
+brute_force,classifiedAs,A07:2021
+
+dir_scan,type,AttackPattern
+dir_scan,label,Directory scanning
+dir_scan,description,A long list of common file and folder names was requested to find hidden or forgotten pages.
+dir_scan,mapsTo,T1595.003
+dir_scan,classifiedAs,A05:2021
+
+# ---------- MITRE ATT&CK techniques ----------
+T1190,type,Technique
+T1190,label,Exploit Public-Facing Application
+T1190,source,https://attack.mitre.org/techniques/T1190/
+T1190,mitigatedBy,network_filtering
+T1190,mitigatedBy,update_software
+T1190,mitigatedBy,least_privilege_db
+
+T1189,type,Technique
+T1189,label,Drive-by Compromise
+T1189,source,https://attack.mitre.org/techniques/T1189/
+T1189,mitigatedBy,update_software
+
+T1110,type,Technique
+T1110,label,Brute Force
+T1110,source,https://attack.mitre.org/techniques/T1110/
+T1110,mitigatedBy,account_lockout
+T1110,mitigatedBy,enable_mfa
+T1110,mitigatedBy,credential_reset
+T1110,mitigatedBy,network_filtering
+
+T1110.001,type,Technique
+T1110.001,label,Brute Force: Password Guessing
+T1110.001,source,https://attack.mitre.org/techniques/T1110/001/
+T1110.001,subTechniqueOf,T1110
+
+T1595,type,Technique
+T1595,label,Active Scanning
+T1595,source,https://attack.mitre.org/techniques/T1595/
+T1595,mitigatedBy,network_filtering
+
+T1595.003,type,Technique
+T1595.003,label,Active Scanning: Wordlist Scanning
+T1595.003,source,https://attack.mitre.org/techniques/T1595/003/
+T1595.003,subTechniqueOf,T1595
+
+# ---------- OWASP Top 10 (2021) categories ----------
+A03:2021,type,WeaknessCategory
+A03:2021,label,Injection
+A03:2021,source,https://owasp.org/Top10/A03_2021-Injection/
+A03:2021,mitigatedBy,input_validation
+
+A05:2021,type,WeaknessCategory
+A05:2021,label,Security Misconfiguration
+A05:2021,source,https://owasp.org/Top10/A05_2021-Security_Misconfiguration/
+A05:2021,mitigatedBy,hide_sensitive_files
+A05:2021,mitigatedBy,disable_directory_listing
+
+A07:2021,type,WeaknessCategory
+A07:2021,label,Identification and Authentication Failures
+A07:2021,source,https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/
+A07:2021,mitigatedBy,enable_mfa
+A07:2021,mitigatedBy,account_lockout
+
+# ---------- mitigations (long-term advice, each with a source) ----------
+network_filtering,type,Mitigation
+network_filtering,label,Filter traffic from the attacker
+network_filtering,description,Refuse requests from addresses that are attacking the site.
+network_filtering,source,https://attack.mitre.org/mitigations/M1037/
+network_filtering,implementedBy,block_ip
+
+account_lockout,type,Mitigation
+account_lockout,label,Limit failed logins
+account_lockout,description,Slow down or lock logins after a few failed attempts so passwords cannot be guessed quickly.
+account_lockout,source,https://attack.mitre.org/mitigations/M1036/
+account_lockout,implementedBy,rate_limit_login
+
+credential_reset,type,Mitigation
+credential_reset,label,Reset compromised credentials
+credential_reset,description,"If a guessed password worked, change it and end that account's sessions."
+credential_reset,source,https://attack.mitre.org/mitigations/M1018/
+credential_reset,implementedBy,reset_password
+
+enable_mfa,type,Mitigation
+enable_mfa,label,Turn on multi-factor authentication
+enable_mfa,description,"With MFA, a guessed password alone is not enough to log in."
+enable_mfa,source,https://attack.mitre.org/mitigations/M1032/
+
+parameterised_queries,type,Mitigation
+parameterised_queries,label,Use parameterised queries
+parameterised_queries,description,"Send user input to the database as data, never as part of the SQL text."
+parameterised_queries,source,https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+parameterised_queries,implementedBy,notify_developer
+
+input_validation,type,Mitigation
+input_validation,label,Validate input on the server
+input_validation,description,Only accept input in the expected format and reject everything else.
+input_validation,source,https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html
+input_validation,implementedBy,notify_developer
+
+output_encoding,type,Mitigation
+output_encoding,label,Encode output shown in pages
+output_encoding,description,Escape user data before putting it in HTML so the browser shows it as text instead of running it.
+output_encoding,source,https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
+output_encoding,implementedBy,notify_developer
+
+content_security_policy,type,Mitigation
+content_security_policy,label,Add a Content Security Policy
+content_security_policy,description,A CSP header tells the browser which scripts are allowed so injected scripts are blocked.
+content_security_policy,source,https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html
+
+update_software,type,Mitigation
+update_software,label,Update the web application
+update_software,description,Install security updates so known holes are closed.
+update_software,source,https://attack.mitre.org/mitigations/M1051/
+
+least_privilege_db,type,Mitigation
+least_privilege_db,label,Give the app's database user minimal rights
+least_privilege_db,description,"If an injection gets through, a database user with few rights limits the damage."
+least_privilege_db,source,https://attack.mitre.org/mitigations/M1026/
+
+hide_sensitive_files,type,Mitigation
+hide_sensitive_files,label,Remove or protect sensitive files
+hide_sensitive_files,description,"Remove backups, config files and admin pages from the public site, or put them behind a login."
+hide_sensitive_files,source,https://owasp.org/Top10/A05_2021-Security_Misconfiguration/
+hide_sensitive_files,implementedBy,notify_developer
+
+disable_directory_listing,type,Mitigation
+disable_directory_listing,label,Turn off directory listing
+disable_directory_listing,description,Stop the server from showing a list of files when a folder is opened.
+disable_directory_listing,source,https://owasp.org/Top10/A05_2021-Security_Misconfiguration/
+
+# ---------- response actions (one-tap buttons) and CSP slots ----------
+network,type,ResponseSlot
+network,label,Network
+account,type,ResponseSlot
+account,label,Account
+application,type,ResponseSlot
+application,label,Application
+
+block_ip,type,ResponseAction
+block_ip,label,Block IP
+block_ip,description,Add the source IP to the nginx deny list (dry run).
+block_ip,actsOn,network
+
+rate_limit_login,type,ResponseAction
+rate_limit_login,label,Rate-limit logins
+rate_limit_login,description,Limit how many login attempts per minute the source IP can make.
+rate_limit_login,actsOn,network
+
+reset_password,type,ResponseAction
+reset_password,label,Reset password
+reset_password,description,Reset the password of the account that was logged into and end its sessions.
+reset_password,actsOn,account
+
+notify_developer,type,ResponseAction
+notify_developer,label,Notify developer
+notify_developer,description,Send the evidence and the recommended code fix to the site's developer.
+notify_developer,actsOn,application
