@@ -1,26 +1,22 @@
 """Tests for the CSP response selector (src/response/selector.py).
 
-Incidents are built with response.kg_stub until Ivan's knowledge graph and
-Cillian's rule engine are available; swap the builder then, the checks stay.
+Domains come from Ivan's real knowledge graph (knowledge.enrich). Severity is
+the detector's until Cillian's rule engine is wired in; tests that need a
+different severity set it on the incident, as the rule engine will.
 """
 import json
 from pathlib import Path
 
 from detection.detector import Detector
+from knowledge.enrich import get_graph
 from response.csp import enumerate_solutions
-from response.kg_stub import ACTIONS, stub_incident
 from response.selector import (
-    NONE, SLOTS, build_response_csp, is_allowlisted, parse_allowlist, select_response,
+    NONE, SLOTS, build_response_csp, is_allowlisted, make_incident, parse_allowlist,
+    select_response,
 )
 
 DATA = Path(__file__).resolve().parent.parent / "data"
-
-ATTACKS = {
-    "brute_force": "T1110.001",
-    "sqli": "T1190",
-    "xss": "T1189",
-    "dir_scan": "T1595.003",
-}
+ATTACKS = ("brute_force", "sqli", "xss", "dir_scan")
 
 
 def make_event(attack_type="brute_force", severity="high", ip="10.0.0.60", compromise=False):
@@ -33,13 +29,16 @@ def make_event(attack_type="brute_force", severity="high", ip="10.0.0.60", compr
         "rule_ids": ["TEST-RULE"],
         "evidence": [],
         "possible_compromise": compromise,
-        "owasp": "A07:2021-Identification and Authentication Failures",
-        "mitre": ATTACKS[attack_type],
     }
 
 
 def incident(**kw):
-    return stub_incident(make_event(**kw))
+    return make_incident(make_event(**kw))
+
+
+def custom_incident(action_domains, **kw):
+    """Incident whose graph answer is given explicitly (for edge cases)."""
+    return make_incident(make_event(**kw), knowledge={"action_domains": action_domains})
 
 
 def all_scenarios():
@@ -60,6 +59,7 @@ def test_c1_allowlisted_ip_is_never_blocked():
         assert "block_ip" not in plan.allowed_actions
         assert plan.recommended["network"] != "block_ip"
         assert any(r.action == "block_ip" and r.constraint == "C1" for r in plan.removed)
+        assert "rate_limit_login" in plan.allowed_actions   # the softer network action stays
 
 
 def test_c2_no_blocking_below_high():
@@ -67,6 +67,7 @@ def test_c2_no_blocking_below_high():
         plan = select_response(incident(attack_type="dir_scan", severity=sev), [])
         assert "block_ip" not in plan.allowed_actions
         assert any(r.action == "block_ip" and r.constraint == "C2" for r in plan.removed)
+        assert plan.allowed_actions == ["notify_developer"]
 
 
 def test_blocking_offered_at_high_and_critical():
@@ -88,13 +89,20 @@ def test_c3_every_option_takes_some_action():
 
 def test_c4_compromise_requires_account_action():
     plan = select_response(incident(severity="critical", compromise=True), [])
-    assert NONE not in plan.options["account"]
-    assert plan.recommended["account"] != NONE
+    assert plan.options["account"] == ["reset_password"]
+    assert plan.recommended["account"] == "reset_password"
     assert [r.constraint for r in plan.required] == ["C4"]
 
     no_comp = select_response(incident(severity="high", compromise=False), [])
     assert NONE in no_comp.options["account"]
     assert no_comp.required == []
+
+
+def test_c4_unsatisfiable_if_graph_has_no_account_action():
+    inc = custom_incident({"network": [{"id": "block_ip", "slot": "network"}]},
+                          severity="critical", compromise=True)
+    plan = select_response(inc, [])
+    assert plan.status == "unsatisfiable" and plan.allowed_actions == []
 
 
 def test_rule_engine_severity_overrides_detector():
@@ -107,39 +115,49 @@ def test_rule_engine_severity_overrides_detector():
 
 # --- grounding in the knowledge graph -------------------------------------------------
 
-def test_only_graph_actions_are_offered():
+def test_every_offered_action_is_justified_by_the_graph():
+    kg = get_graph()
     for inc, allow in all_scenarios():
-        graph_actions = {a["id"] for m in inc["mitigations"] for a in m["actions"]}
+        attack = inc["event"]["attack_type"]
         plan = select_response(inc, allow)
-        assert set(plan.allowed_actions) <= graph_actions
         for a in plan.allowed_actions:
-            assert plan.provenance[a], f"{a} has no mitigation behind it"
-            assert ACTIONS[a]["slot"] in plan.options and a in plan.options[ACTIONS[a]["slot"]]
+            proof = kg.justify(attack, a)
+            assert proof is not None, f"{a} offered for {attack} without a graph path"
+            assert plan.provenance[a], f"{a} has no provenance"
 
 
-def test_unknown_technique_has_nothing_to_offer():
-    inc = incident()
-    inc["mitigations"] = []       # open world: graph knows no mitigation
-    plan = select_response(inc, [])
+def test_domains_follow_the_graph():
+    plan = select_response(incident(attack_type="xss", severity="medium"), [])
+    # the graph links XSS only to an application action, so network/account are {none}
+    assert plan.initial_domains["network"] == [NONE]
+    assert plan.initial_domains["account"] == [NONE]
+    assert plan.allowed_actions == ["notify_developer"]
+
+
+def test_unknown_attack_has_nothing_to_offer():
+    event = make_event()
+    event["attack_type"] = "ddos"              # not in the graph: open world, unknown
+    plan = select_response(make_incident(event), [])
     assert plan.status == "unsatisfiable"
     assert plan.allowed_actions == [] and plan.recommended == {}
     assert "No combination" in plan.explanation_lines()[0]
 
 
 def test_unsatisfiable_when_only_action_is_forbidden():
-    inc = incident(severity="critical")
-    inc["mitigations"] = [{"id": "block_source", "label": "Block",
-                           "actions": [{"id": "block_ip", "slot": "network", "label": "Block"}]}]
+    inc = custom_incident({"network": [{"id": "block_ip", "slot": "network", "label": "Block IP"}]},
+                          severity="critical")
     plan = select_response(inc, parse_allowlist("10.0.0.60"))
     assert plan.status == "unsatisfiable"
     assert [(r.action, r.constraint) for r in plan.removed] == [("block_ip", "C1")]
 
 
-def test_actions_with_unknown_slot_are_ignored():
-    inc = incident()
-    inc["mitigations"].append({"id": "x", "actions": [{"id": "shutdown_server", "slot": "power"}]})
+def test_unknown_or_mismatched_slots_are_ignored():
+    inc = custom_incident({
+        "power": [{"id": "shutdown_server", "slot": "power"}],
+        "network": [{"id": "wipe_disk", "slot": "application"}, {"id": "block_ip", "slot": "network"}],
+    })
     plan = select_response(inc, [])
-    assert "shutdown_server" not in plan.allowed_actions
+    assert plan.allowed_actions == ["block_ip"]
 
 
 def test_invalid_severity_rejected():
@@ -190,22 +208,29 @@ def plans_for(log_name, allow=""):
     with open(DATA / log_name) as f:
         for line in f:
             for ev in det.process_line(line):
-                out.append(select_response(stub_incident(ev.to_dict()), parse_allowlist(allow)))
+                out.append(select_response(make_incident(ev.to_dict()), parse_allowlist(allow)))
     return out
 
 
 def test_replayed_dir_scan_is_not_blocked():
     plans = plans_for("dir_scan_logs.jsonl")
     assert len(plans) == 1 and plans[0].severity == "medium"
-    assert "block_ip" not in plans[0].allowed_actions
+    assert plans[0].allowed_actions == ["notify_developer"]
+
+
+def test_replayed_sqli_offers_block_and_developer():
+    (plan,) = plans_for("sqlmap_logs.jsonl")
+    assert plan.severity == "high"
+    assert set(plan.allowed_actions) == {"block_ip", "notify_developer"}
 
 
 def test_replayed_brute_force_escalation():
     high, critical = plans_for("brute_force_logs.jsonl")
     assert high.severity == "high" and "block_ip" in high.allowed_actions
-    assert critical.severity == "critical" and critical.recommended["account"] != NONE
+    assert critical.severity == "critical" and critical.recommended["account"] == "reset_password"
 
 
 def test_replayed_brute_force_from_allowlisted_ip():
     for plan in plans_for("brute_force_logs.jsonl", allow="10.0.0.60"):
         assert "block_ip" not in plan.allowed_actions
+        assert "rate_limit_login" in plan.allowed_actions

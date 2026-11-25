@@ -9,9 +9,10 @@ as a CSP (X, D, C) and solving it with response.csp.BacktrackingSolver.
         severity a variable turns C2 into a real binary constraint that
         forward checking propagates over.
 
-    D(slot) = actions the knowledge graph links to the incident's technique
-              for that slot, plus "none". If the graph knows no action for a
-              slot, the domain is {"none"}: open world, nothing is invented.
+    D(slot) = actions Ivan's knowledge graph links to the attack for that
+              slot (knowledge.enrich -> "action_domains"), plus "none". If the
+              graph knows no action for a slot, the domain is {"none"}: open
+              world, nothing is invented.
 
     C1 unary   network != block_ip            when src_ip is allowlisted
     C2 binary  network = block_ip  ->  severity in {high, critical}
@@ -25,6 +26,13 @@ Output (ResponsePlan):
                      these become the one-tap Telegram buttons
     removed          each action that appears in no solution, with the
                      constraint and reason that removed it
+
+Input: an incident dict
+    {"event": DetectionEvent.to_dict(),
+     "severity": final severity (rule engine; the detector's until it lands),
+     "trace": rule-engine proof trace,
+     "knowledge": knowledge.enrich(event)}
+make_incident() builds one from a DetectionEvent dict.
 """
 from __future__ import annotations
 
@@ -93,7 +101,7 @@ class ResponsePlan:
     required: List[RemovedAction]                # slots where "none" was ruled out
     initial_domains: Dict[str, List[str]]
     action_labels: Dict[str, str]
-    provenance: Dict[str, List[str]]             # action -> mitigation ids (graph path)
+    provenance: Dict[str, List[str]]             # action -> graph triples that justify it
     constraints: List[dict]                      # id, kind, scope, reason
     solutions_count: int
     stats: SearchStats = field(repr=False, default_factory=SearchStats)
@@ -136,35 +144,54 @@ class ResponsePlan:
 
 # --- problem construction --------------------------------------------------------
 
-def build_domains(mitigations: Sequence[dict]):
-    """Slot domains from the graph's mitigations, preserving the graph's order.
+def make_incident(event: dict, knowledge: Optional[dict] = None,
+                  severity: Optional[str] = None, trace: Optional[list] = None) -> dict:
+    """Assemble the selector's input from a DetectionEvent dict.
 
-    Returns (domains, labels, provenance, ignored). Actions whose slot isn't one
-    of SLOTS are ignored and reported rather than guessed.
+    `knowledge` defaults to Ivan's knowledge.enrich(event). `severity` and
+    `trace` default to the detector's own until Cillian's rule engine is wired in.
+    """
+    if knowledge is None:
+        from knowledge.enrich import enrich
+        knowledge = enrich(event)
+    return {
+        "event": event,
+        "severity": severity or event["severity"],
+        "trace": trace if trace is not None else [],
+        "knowledge": knowledge,
+    }
+
+
+def build_domains(action_domains: Dict[str, Sequence[dict]]):
+    """Slot domains from the graph's action_domains, preserving the graph's order.
+
+    `action_domains` is knowledge.enrich()["action_domains"]: slot -> list of
+    {"id", "label", "slot", "mitigation", "path"}. Returns
+    (domains, labels, provenance, ignored). Slots other than SLOTS, and actions
+    whose own slot disagrees with the key they are listed under, are ignored
+    and reported rather than guessed.
     """
     domains: Dict[str, List[str]] = {s: [] for s in SLOTS}
     labels: Dict[str, str] = {}
     provenance: Dict[str, List[str]] = {}
     ignored: List[str] = []
-    for m in mitigations:
-        for a in m.get("actions", []):
-            aid, slot = a["id"], a.get("slot")
-            if slot not in domains:
+    for slot, actions in (action_domains or {}).items():
+        for a in actions:
+            aid = a["id"]
+            if slot not in domains or a.get("slot", slot) != slot:
                 ignored.append(aid)
                 continue
             if aid not in domains[slot]:
                 domains[slot].append(aid)
             labels.setdefault(aid, a.get("label", aid))
-            provenance.setdefault(aid, [])
-            if m.get("id") and m["id"] not in provenance[aid]:
-                provenance[aid].append(m["id"])
+            provenance.setdefault(aid, list(a.get("path", [])))
     for s in SLOTS:
         domains[s].append(NONE)          # "do nothing on this layer" is always a value
     return domains, labels, provenance, ignored
 
 
 def build_response_csp(incident: dict, allowlist: Allowlist):
-    """Return (csp, labels, provenance) for one incident in the agreed contract shape."""
+    """Return (csp, labels, provenance) for one incident (see make_incident)."""
     event = incident["event"]
     severity = incident.get("severity") or event["severity"]
     if severity not in SEVERITIES:
@@ -172,7 +199,8 @@ def build_response_csp(incident: dict, allowlist: Allowlist):
     src_ip = event["src_ip"]
     compromise = bool(event.get("possible_compromise"))
 
-    domains, labels, provenance, _ = build_domains(incident.get("mitigations", []))
+    knowledge = incident.get("knowledge") or {}
+    domains, labels, provenance, _ = build_domains(knowledge.get("action_domains", {}))
     domains[SEVERITY_VAR] = [severity]
     allowlisted = is_allowlisted(src_ip, allowlist)
 
@@ -259,7 +287,6 @@ if __name__ == "__main__":
     import argparse
 
     from detection.detector import Detector
-    from response.kg_stub import stub_incident
 
     ap = argparse.ArgumentParser(description="Run a recorded log through the detector and the response CSP.")
     ap.add_argument("log", help="JSONL access log, e.g. data/brute_force_logs.jsonl")
@@ -273,10 +300,11 @@ if __name__ == "__main__":
         for line in f:
             for ev in det.process_line(line):
                 e = ev.to_dict()
-                plan = select_response(stub_incident(e), allow)
+                plan = select_response(make_incident(e), allow)
                 print(f"\n== {e['attack_type']} from {e['src_ip']}  severity={plan.severity}"
                       f"  compromise={e['possible_compromise']}")
                 for ln in plan.explanation_lines():
                     print("   " + ln)
-                print(f"   ({plan.solutions_count} valid combinations, "
+                plural = "" if plan.solutions_count == 1 else "s"
+                print(f"   ({plan.solutions_count} valid combination{plural}, "
                       f"{plan.stats.nodes} nodes, {plan.stats.backtracks} backtracks)")
