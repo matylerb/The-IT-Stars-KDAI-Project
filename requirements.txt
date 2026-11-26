@@ -1,0 +1,5 @@
+# The system itself uses only the Python standard library.
+pytest>=8
+
+# Optional: only to regenerate the benign traffic dataset (src/traffic/locust_benign.py)
+locust
