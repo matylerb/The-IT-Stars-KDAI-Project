@@ -208,7 +208,8 @@ def build_response_csp(incident: dict, allowlist: Allowlist):
         Constraint(
             "C1", ("network",),
             lambda net: not (allowlisted and net == "block_ip"),
-            f"{src_ip} is on your allowlist, so it is never blocked"),
+            f"{src_ip} is on your allowlist, so it is never blocked" if allowlisted
+            else f"allowlisted IPs are never blocked ({src_ip} is not on the allowlist)"),
         Constraint(
             "C2", ("network", SEVERITY_VAR),
             lambda net, sev: net != "block_ip" or sev in BLOCKING_SEVERITIES,
@@ -222,7 +223,9 @@ def build_response_csp(incident: dict, allowlist: Allowlist):
             "C4", ("account",),
             lambda acc: not (compromise and acc == NONE),
             "a login succeeded right after a password-guessing burst, "
-            "so an account action is required"),
+            "so an account action is required" if compromise
+            else "an account action is required only after a likely account takeover "
+                 "(none detected here)"),
     ]
     csp = CSP(list(SLOTS) + [SEVERITY_VAR], domains, constraints)
     return csp, labels, provenance

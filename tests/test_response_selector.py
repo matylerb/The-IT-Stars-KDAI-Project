@@ -184,6 +184,17 @@ def test_plan_matches_brute_force_enumeration():
             assert csp.is_solution({**plan.recommended, "severity": plan.severity})
 
 
+def test_constraint_reasons_describe_this_incident():
+    # the constraint list is passed to the LLM, so it must not state false facts
+    plain = {c["id"]: c["reason"] for c in select_response(incident(), []).to_dict()["constraints"]}
+    assert "is not on the allowlist" in plain["C1"]
+    assert "none detected" in plain["C4"]
+    hit = select_response(incident(severity="critical", compromise=True), parse_allowlist("10.0.0.60"))
+    reasons = {c["id"]: c["reason"] for c in hit.to_dict()["constraints"]}
+    assert "is on your allowlist" in reasons["C1"]
+    assert "login succeeded" in reasons["C4"]
+
+
 def test_plan_is_json_serialisable():
     d = select_response(incident(severity="critical", compromise=True), []).to_dict()
     assert json.loads(json.dumps(d))["status"] == "ok"
