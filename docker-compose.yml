@@ -24,13 +24,21 @@ services:
 
   agent:
     build:
-      context: ./src/agent
+      context: .                       # repo root, so the image can copy all of src/
+      dockerfile: src/agent/Dockerfile
     platform: linux/amd64
     restart: unless-stopped
     volumes:
       - nginx_logs:/var/log/nginx:ro   # read-only view of the same log dir
+      - ./data:/app/data               # feedback store, dry-run deny list, knowledge graph
     environment:
       - LOG_PATH=/var/log/nginx/access.log
+      # secrets come from .env (copy .env.example), never written here
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - ALLOWLIST=${ALLOWLIST:-}
     depends_on:
       - nginx
 
