@@ -9,3 +9,9 @@ scratch/
 # runtime output from the threshold tuner (generated per run, not source)
 data/threshold_overrides.json
 data/tuning_log.jsonl
+
+# dry-run output of the Telegram "Block IP" button
+data/nginx_deny.dryrun.conf
+
+# human verdicts recorded by the Telegram buttons (runtime data)
+data/feedback.jsonl
