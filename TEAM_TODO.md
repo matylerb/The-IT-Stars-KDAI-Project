@@ -61,6 +61,7 @@ severity, trace = engine.assess(event, known_attacker)
 - The engine must **remember earlier events per IP**: R2 needs the earlier dir_scan.
 - Run forward chaining until no new facts appear (fixed point), and record every rule that fired. That's the explanation facility (Lectures 7–8).
 - Tests: each rule fires and doesn't fire, highest severity wins, the trace lists the fired rules, and nothing changes after the fixed point.
+- **Update the README** once it's merged: the "Rule engine" row in the architecture table still says *being added*.
 - **Tell Tyler when it's merged. He wires it into `handle()` in `src/agent/main.py`** (about 3 lines: `make_incident(event, knowledge=k, severity=severity, trace=trace)`). The CSP, the LLM and Telegram already accept `severity` and `trace`.
 
 **Why R4 matters for the demo:** a dir_scan is medium, so the CSP's C2 rule hides Block IP. Once a human confirms that IP, the graph records it, R4 raises the next alert to high, and **Block IP appears**. That's Bianca's point 1 shown live: graph knowledge changes the recommendation.
@@ -86,8 +87,8 @@ severity, trace = engine.assess(event, known_attacker)
    - never Block IP for an allowlisted IP (run with `ALLOWLIST=...`) or below high severity;
    - benign traffic gives **0 alerts**.
 
-   Print a table and paste it into the report (rubric: "Evaluation and testing", 2 marks).
-3. **`requirements.txt` at the repo root** (required by the brief): `pytest` and `locust`. The system itself only needs the standard library.
+   Print a table and paste it into `docs/report.md` §6 (rubric: "Evaluation and testing", 2 marks).
+3. ~~Root `requirements.txt`~~: done (Tyler).
 
 ---
 
@@ -104,16 +105,15 @@ severity, trace = engine.assess(event, known_attacker)
 
 ## Everyone
 
-**Repo layout the brief requires** (currently missing):
-- [ ] `README.md`: right now it only has a title, and it's saved as UTF-16 (re-save as UTF-8). It must contain:
-  - project overview;
-  - installation;
-  - required packages;
-  - system architecture (the diagram in proposal §6);
-  - how to run it (Docker and replay);
-  - example outputs (a screenshot of a Telegram alert);
-  - **team contribution table**.
-- [ ] `docs/report.md`: each person writes their own section, plus:
+**Repo cleanup (done by Tyler):**
+- Lecture slides and the assignment brief moved to `lectures/`.
+- `proposal/proposal.md` is now proposal v2; the first proposal was removed.
+- Removed `plan.md` (an old, unused plan) and `DETECTION_INTEGRATION_HANDOFF.md` (an internal handoff note). Both are still in the git history.
+- Added root `requirements.txt`, `docs/report.md` (outline with owners), `presentation/` and `assets/`.
+- [x] `README.md` rewritten with everything the brief asks for. **Check your own rows** in the architecture and contribution tables.
+
+**Still to do:**
+- [ ] `docs/report.md`: each person writes their own section in the outline, plus:
   - the AIMA formulation (state, actions, goal, knowledge representation, reasoning), since the brief asks for it explicitly;
   - the evaluation table;
   - limitations (proposal §3);
@@ -124,8 +124,8 @@ severity, trace = engine.assess(event, known_attacker)
     - the LLM model switch;
     - rule R4.
 - [ ] `presentation/`: slides (5–10 minutes): problem → AI techniques → design decisions → challenges → results.
-- [ ] `assets/`: screenshots (Telegram alert, architecture diagram).
-- [ ] **AI tool acknowledgement**, required by the brief's academic integrity section: a short statement in the README or report of what AI tools were used for (brainstorming, debugging, documentation drafting, code assistance).
+- [ ] `assets/`: screenshots (Telegram alert, architecture diagram). Link a Telegram screenshot from the README's "Example output".
+- [ ] **AI tool acknowledgement**, required by the brief's academic integrity section. The README has a table with one row per person: **fill in your own row honestly** (which tools, used for what). Tyler's row is done.
 
 **Demo plan:** use replays, not live traffic, so it can't fail on the network. Run each from the repo root with Telegram on:
 
