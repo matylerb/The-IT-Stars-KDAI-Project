@@ -10,7 +10,7 @@ The attacker's requests (evidence) are never sent to the LLM, so text hidden
 in them cannot instruct it.
 
     from advisor import advise
-    alert = advise(incident, plan)   # {"what_happened", "how_serious", "actions", "source"}
+    alert = advise(incident, plan)   # {"what_happened", "how_serious", "actions", "why", "source"}
 
 Demo, from the repo root:  PYTHONPATH=src python src/advisor.py data/brute_force_logs.jsonl
 """
@@ -19,15 +19,19 @@ import os
 import re
 import urllib.request
 
+from knowledge.enrich import get_graph
+
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
+DEFAULT_MODEL = "openai/gpt-oss-120b"
 
 PROMPT = """You write security alerts for a small business owner who is not a security expert.
 Use ONLY the facts below. Do not add attack techniques, IP addresses, severity levels or actions that are not in the facts.
 State the severity exactly as given. Nothing has been done yet: a person will decide.
 Reply with JSON only, in this shape:
 {"what_happened": "...", "how_serious": "...", "actions": {"<action id>": "<one short sentence>"}}
-The actions must be exactly the action ids in the facts.
+what_happened: one or two plain sentences, including the source IP and how many requests.
+how_serious: one or two sentences that give the severity and explain why, using "why" from the facts.
+The actions must be exactly the action ids in the facts; say what each one would do.
 
 Facts:
 """
@@ -36,10 +40,15 @@ Facts:
 def build_facts(incident, plan):
     """The only information the alert may use."""
     event = incident["event"]
-    attack = incident["knowledge"].get("attack", {})
-    why = list(event["rule_ids"])
-    if event.get("possible_compromise"):
-        why.append("a login succeeded right after the failed attempts")
+    knowledge = incident["knowledge"]
+    attack = knowledge.get("attack", {})
+    why = [str(step) for step in incident.get("trace") or []]   # rule engine's proof trace
+    if not why:                                                  # no rule engine: detector's rules
+        why = list(event["rule_ids"])
+        if event.get("possible_compromise"):
+            why.append("a login succeeded right after the failed attempts")
+    if knowledge.get("known_attacker"):
+        why.append(known_attacker_text(event["src_ip"], knowledge["known_attacker"]))
     return {
         "attack": attack.get("label", event["attack_type"]),
         "description": attack.get("description"),
@@ -54,13 +63,53 @@ def build_facts(incident, plan):
     }
 
 
+def known_attacker_text(ip, attacks):
+    return f"a person already confirmed {ip} as an attacker ({', '.join(attacks)})"
+
+
+# --- "Why these actions": built from the graph and the CSP, never by the LLM ----
+
+HOP = {"mapsTo": "ATT&CK", "classifiedAs": "OWASP", "subTechniqueOf": "part of",
+       "mitigatedBy": "mitigated by"}
+
+
+def graph_path(path, label):
+    """Graph triples -> 'Brute-force login → ATT&CK T1110.001 → part of T1110 → mitigated by Limit failed logins'."""
+    triples = [t.strip("()").split(", ", 2) for t in path]
+    parts = [label(triples[0][0])]
+    for _, relation, obj in triples:
+        if relation == "implementedBy":          # the action itself, already named
+            continue
+        parts.append(f"{HOP.get(relation, relation)} {label(obj) if relation == 'mitigatedBy' else obj}")
+    return " → ".join(parts)
+
+
+def why_lines(incident, plan, label=None):
+    """Why each action is offered (graph path) or not (CSP constraint). Always shown."""
+    label = label or get_graph().label
+    lines = []
+    for action in plan.allowed_actions:
+        if plan.provenance.get(action):
+            lines.append(f"{label(action)}: {graph_path(plan.provenance[action], label)}")
+    for r in plan.required:
+        lines.append(f"Must include an {r.slot} action ({r.constraint}: {r.reason})")
+    for r in plan.removed:
+        lines.append(f"Not offered: {label(r.action)} ({r.constraint or 'no valid combination'}: {r.reason})")
+    if plan.status != "ok":
+        lines.append(plan.explanation_lines()[0])
+    known = incident["knowledge"].get("known_attacker")
+    if known:
+        lines.append("Known attacker: " + known_attacker_text(incident["event"]["src_ip"], known))
+    return lines
+
+
 def ask_llm(facts):
     """Ask Groq to phrase the facts. Returns the reply text, or None if unavailable."""
     key = os.environ.get("GROQ_API_KEY")
     if not key:
         return None
     body = json.dumps({
-        "model": MODEL,
+        "model": os.environ.get("LLM_MODEL") or DEFAULT_MODEL,   # empty counts as unset
         "temperature": 0,
         "response_format": {"type": "json_object"},
         "messages": [{"role": "user", "content": PROMPT + json.dumps(facts, indent=2)}],
@@ -102,8 +151,6 @@ def template(facts):
     serious = f"Severity: {facts['severity']}. Why: {', '.join(facts['why'])}."
     if facts["technique"]:
         serious += f" This matches MITRE ATT&CK {facts['technique']} and OWASP {facts['owasp']}."
-    for reason in facts["not_offered"]:
-        serious += f" Not offered: {reason}."
     if not facts["actions"]:
         serious += " No safe automatic action is available, so keep monitoring."
     return {
@@ -115,8 +162,10 @@ def template(facts):
 
 
 def advise(incident, plan, llm=ask_llm):
-    """Alert for one incident: the LLM's wording if it passes the check, else the template."""
+    """Alert for one incident: the LLM's wording if it passes the check, else the template.
+    "why" is always added from the graph and the CSP, whoever wrote the rest."""
     facts = build_facts(incident, plan)
+    why = why_lines(incident, plan)
     reply = llm(facts)
     if reply:
         try:
@@ -124,8 +173,8 @@ def advise(incident, plan, llm=ask_llm):
         except ValueError:
             answer = None
         if not check(answer, facts):
-            return {**answer, "source": "llm"}
-    return {**template(facts), "source": "template"}
+            return {**answer, "why": why, "source": "llm"}
+    return {**template(facts), "why": why, "source": "template"}
 
 
 if __name__ == "__main__":

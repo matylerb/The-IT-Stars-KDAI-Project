@@ -78,7 +78,30 @@ def test_evidence_is_not_sent_to_the_llm():
     assert "ignore your instructions" not in json.dumps(build_facts(incident, plan))
 
 
-def test_template_says_what_was_not_offered():
+def test_why_says_what_was_not_offered():
     incident, plan = scenario(severity="critical", allow="10.0.0.60")
     alert = advise(incident, plan, llm=lambda facts: None)
-    assert "Not offered: 10.0.0.60 is on your allowlist" in alert["how_serious"]
+    assert any(line.startswith("Not offered: Block IP") and "10.0.0.60 is on your allowlist" in line
+               for line in alert["why"])
+
+
+def test_why_shows_the_graph_path_even_when_the_llm_writes_the_alert():
+    incident, plan = scenario()
+    alert = advise(incident, plan, llm=lambda facts: json.dumps(good_answer(facts)))
+    assert alert["source"] == "llm"
+    assert ("Rate-limit logins: Brute-force login → ATT&CK T1110.001 → part of T1110 "
+            "→ mitigated by Limit failed logins") in alert["why"]
+
+
+def test_known_attacker_from_the_graph_is_explained():
+    incident, plan = scenario()
+    incident["knowledge"]["known_attacker"] = ["brute_force"]
+    facts = build_facts(incident, plan)
+    assert "a person already confirmed 10.0.0.60 as an attacker (brute_force)" in facts["why"]
+    assert any(line.startswith("Known attacker:") for line in advise(incident, plan, llm=lambda f: None)["why"])
+
+
+def test_rule_engine_trace_replaces_detector_rule_ids():
+    incident, plan = scenario()
+    incident["trace"] = ["R1: brute force + login succeeded after failures -> critical"]
+    assert build_facts(incident, plan)["why"] == incident["trace"]
