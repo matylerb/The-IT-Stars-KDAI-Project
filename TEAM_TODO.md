@@ -68,26 +68,28 @@ severity, trace = engine.assess(event, known_attacker)
 
 ---
 
-## Illya: scenario data and evaluation (proposal §7)
+## Illya: scenario data and evaluation (proposal §7) — **done**
 
-1. **Scan-then-injection replay**, needed for R2/R3. Today the scan comes from 10.0.0.70 and the SQLi from 10.0.0.80, so the chain can never fire.
-   - Make `data/scan_then_sqli_logs.jsonl` with a small script (e.g. `src/dataset/make_chain_scenario.py`) rather than editing by hand: the dir_scan lines, then the sqlmap lines with the IP changed to 10.0.0.70 and timestamps after the scan.
-2. **Scenario evaluation**, as the proposal promises: brute force, scan, SQLi, scan-then-SQLi, and benign (locust). Reuse Tyler's pipeline:
-   ```python
-   from detection.detector import Detector
-   from agent.main import run          # or sys.path to src/agent, see tests/test_agent.py
-   sent = []
-   run(open(path), lambda event, plan, alert: sent.append((event, plan, alert)),
-       llm=lambda facts: None, detector=Detector())
-   ```
-   For each scenario, report:
-   - expected incidents and severity (needs Cillian's engine for the chain);
-   - every alert has a non-empty trace and a non-empty `alert["why"]`;
-   - every offered action has a graph proof: `get_graph().justify(attack, action)` is not `None`;
-   - never Block IP for an allowlisted IP (run with `ALLOWLIST=...`) or below high severity;
-   - benign traffic gives **0 alerts**.
-
-   Print a table and paste it into `docs/report.md` §6 (rubric: "Evaluation and testing", 2 marks).
+1. ~~**Scan-then-injection replay**~~: done. `src/dataset/make_chain_scenario.py`
+   builds `data/scan_then_sqli_logs.jsonl` — the real dir_scan lines then the
+   real sqlmap lines rewritten to the scanner's IP (10.0.0.70) with timestamps
+   shifted to follow the scan. The detector emits dir_scan then sqli from one
+   IP, so R2/R3 can fire. Tested (`tests/test_evaluate_scenarios.py`).
+2. ~~**Scenario evaluation**~~: done. `src/evaluate_scenarios.py`
+   (`PYTHONPATH=src python -m evaluate_scenarios`) replays brute force, scan,
+   SQLi, scan-then-SQLi, benign, and an allowlisted brute force through the
+   whole pipeline and checks expected severity, a non-empty trace and `why`, a
+   graph proof (`justify`) for every offered action, Block IP only at ≥ high and
+   never for an allowlisted IP, and 0 alerts on benign. The results table is in
+   `docs/report.md` §6, and §5 is written.
+   - **Depends on Cillian's rule engine** for the chain's *critical* severity.
+     The evaluator calls `RuleEngine.load("data/rules.json")` /
+     `engine.assess(event, known_attacker)` exactly as specified below. Until it
+     merges, `evaluate_scenarios` stops with a clear message and the three
+     engine-dependent tests skip; the chain data and the detector metrics are
+     verified now. Verified end-to-end against a temporary local stub of that
+     interface. **Cillian: when you merge, re-run `python -m evaluate_scenarios`
+     — the chain row should flip to `sqli critical` with no code change.**
 3. ~~Root `requirements.txt`~~: done (Tyler).
 
 ---

@@ -199,6 +199,7 @@ Then:
 python -m knowledge.demo                                              # knowledge graph: mitigations and proof paths
 python -m response.selector data/brute_force_logs.jsonl --allow 10.0.0.60   # CSP: allowed actions and pruning trace
 python -m evaluate                                                    # detector recall, false-positive rate, latency
+python -m evaluate_scenarios                                          # whole-pipeline checks per scenario (needs the rule engine)
 python -m feedback.tune_thresholds                                    # threshold tuning from human verdicts
 ```
 
@@ -262,6 +263,6 @@ As the assignment allows, generative AI tools were used and are acknowledged her
 | Tyler Brady | Claude (Anthropic) helped design and write the CSP selector, the LLM advisor and grounding check, the Telegram bot and the orchestrator, along with their tests, and helped debug and draft documentation (including this README). Tyler ran and tested all of it. |
 | Ivan Kubsky | *to be completed by Ivan* |
 | Cillian Chatham | *to be completed by Cillian* |
-| Illya Mikava | *to be completed by Illya* |
+| Illya Mikava | Claude (Anthropic) helped build the scan-then-SQLi chain scenario generator and the whole-pipeline scenario evaluator, and draft the evaluation sections of the report, reusing the team's existing detector, knowledge graph and CSP. Illya reviewed, ran and tested all of it. |
 
 The running system also uses an LLM (Groq), but only to word alerts, as described above.
